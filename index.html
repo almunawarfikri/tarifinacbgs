@@ -324,21 +324,44 @@
   </div>
 
   <script>
+    // MASUKKAN URL WEB APP ANDA DI SINI (Dapatkan setelah Deploy > New Deployment > Web App)
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZA26KAIUVLICfJ1SHR4TgIfWHw--qI_D4MRXf-HHXW75LHLcBjGjyUOt_RYRf-prXGg/exec"; 
+
     let globalData = [];
     let editRow = null;
     let currentSort = { col: null, dir: 'asc' };
 
-    function loadData() {
-      google.script.run.withSuccessHandler(data => {
-        const header = data[0];
-        const topupIdx = header.findIndex(h => h.toLowerCase().replace(/\s/g, '').includes("topup"));
+    function isGoogleHost() {
+      return typeof google !== 'undefined' && google.script && google.script.run;
+    }
 
-        globalData = data.map(row => {
-          if (topupIdx !== -1) return row.filter((_, idx) => idx !== topupIdx);
-          return row;
-        });
-        renderTable(globalData);
-      }).getData();
+    async function loadData() {
+      if (isGoogleHost()) {
+        google.script.run.withSuccessHandler(processData).getData();
+      } else {
+        if (!SCRIPT_URL) {
+          alert("Peringatan: SCRIPT_URL belum diisi. Jika diakses dari Vercel, data tidak akan muncul.");
+          return;
+        }
+        try {
+          const response = await fetch(`${SCRIPT_URL}?action=getData`);
+          const data = await response.json();
+          processData(data);
+        } catch (err) {
+          console.error("Gagal mengambil data:", err);
+          alert("Gagal mengambil data dari Google Script. Pastikan URL benar dan sudah di-Deploy sebagai 'Anyone'.");
+        }
+      }
+    }
+
+    function processData(data) {
+      const header = data[0];
+      const topupIdx = header.findIndex(h => h.toLowerCase().replace(/\s/g, '').includes("topup"));
+      globalData = data.map(row => {
+        if (topupIdx !== -1) return row.filter((_, idx) => idx !== topupIdx);
+        return row;
+      });
+      renderTable(globalData);
     }
 
     function renderTable(data) {
@@ -409,7 +432,7 @@
       showModal();
     }
 
-    function save() {
+    async function save() {
       const data = {
         diagnosa: document.getElementById("diagnosa").value,
         kode: document.getElementById("kode").value,
@@ -421,10 +444,29 @@
         cluster: document.getElementById("cluster").value
       };
 
-      if (editRow) {
-        google.script.run.withSuccessHandler(loadData).updateData(editRow + 1, data);
+      if (isGoogleHost()) {
+        if (editRow) {
+          google.script.run.withSuccessHandler(loadData).updateData(editRow + 1, data);
+        } else {
+          google.script.run.withSuccessHandler(loadData).addData(data);
+        }
       } else {
-        google.script.run.withSuccessHandler(loadData).addData(data);
+        const payload = {
+          action: editRow ? "updateData" : "addData",
+          rowIndex: editRow ? editRow + 1 : undefined,
+          data: data
+        };
+
+        try {
+          await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          loadData();
+        } catch (err) {
+          console.error("Gagal menyimpan data:", err);
+          alert("Gagal mengirim data ke Google Script.");
+        }
       }
       closeModal();
     }
