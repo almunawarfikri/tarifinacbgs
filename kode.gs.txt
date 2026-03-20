@@ -1,8 +1,35 @@
 const SHEET_NAME = "DATA";
 
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Tarif INACBG');
+function doGet(e) {
+  // Jika diakses lewat browser langsung atau Google Apps Script Web App
+  if (!e || !e.parameter || !e.parameter.action) {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Tarif INACBG')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // Jika diakses sebagai API (Misal: ?action=getData)
+  const action = e.parameter.action;
+  if (action === "getData") {
+    const data = getData();
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  const params = JSON.parse(e.postData.contents);
+  const action = params.action;
+
+  if (action === "addData") {
+    addData(params.data);
+    return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  if (action === "updateData") {
+    updateData(params.rowIndex, params.data);
+    return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+  }
 }
 
 function getData() {
@@ -12,7 +39,6 @@ function getData() {
 
 function addData(data) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-
   sheet.appendRow([
     data.diagnosa,
     data.kode,
@@ -27,7 +53,6 @@ function addData(data) {
 
 function updateData(rowIndex, data) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-
   sheet.getRange(rowIndex, 1, 1, 8).setValues([[
     data.diagnosa,
     data.kode,
