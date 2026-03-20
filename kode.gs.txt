@@ -1,0 +1,41 @@
+const SHEET_NAME = "DATA";
+
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('Tarif INACBG');
+}
+
+function getData() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  return sheet.getDataRange().getDisplayValues();
+}
+
+function addData(data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+
+  sheet.appendRow([
+    data.diagnosa,
+    data.kode,
+    data.kelas1,
+    data.kelas2,
+    data.kelas3,
+    data.severity,
+    data.syarat,
+    data.cluster
+  ]);
+}
+
+function updateData(rowIndex, data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+
+  sheet.getRange(rowIndex, 1, 1, 8).setValues([[
+    data.diagnosa,
+    data.kode,
+    data.kelas1,
+    data.kelas2,
+    data.kelas3,
+    data.severity,
+    data.syarat,
+    data.cluster
+  ]]);
+}
